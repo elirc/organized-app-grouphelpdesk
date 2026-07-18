@@ -1,0 +1,8 @@
+# Author: Morgan Lee
+# Issue: #10 - Configure shared formatting rules
+
+semi: true
+singleQuote: true
+tabWidth: 2
+trailingComma: all
+printWidth: 100

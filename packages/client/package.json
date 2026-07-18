@@ -1,0 +1,31 @@
+{
+  "name": "@helpdesk/client",
+  "private": true,
+  "authorPersona": "Sam Rivera",
+  "issue": "#6",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "node -e \"const fs=require('fs');const hasTs=fs.readdirSync('src',{recursive:true}).some((f)=>/\\.tsx?$/.test(String(f)));process.exit(hasTs?1:0)\" || tsc --noEmit"
+  },
+  "dependencies": {
+    "@helpdesk/shared": "*",
+    "@tanstack/react-query": "^5.59.16",
+    "marked": "^14.1.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.26.2",
+    "recharts": "^2.12.7"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.11",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.2",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.13",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.8"
+  }
+}

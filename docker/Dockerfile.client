@@ -1,0 +1,19 @@
+# Author: Jordan Park
+# Issue: #23 â€” Build and serve the Vite client with a multi-stage Dockerfile
+
+FROM node:20-alpine AS build
+WORKDIR /app
+
+COPY package.json ./
+COPY packages/client/package.json packages/client/package.json
+COPY packages/shared/package.json packages/shared/package.json
+RUN npm install --package-lock=false
+
+COPY packages/shared packages/shared
+COPY packages/client packages/client
+RUN npm run build --workspace @helpdesk/client
+
+FROM nginx:alpine AS runtime
+COPY --from=build /app/packages/client/dist /usr/share/nginx/html
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]

@@ -1,0 +1,337 @@
+// Author: Alex Chen
+// Issue: #1 â€” Define HelpDesk database schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String                    @id @default(uuid())
+  name              String
+  email             String                    @unique
+  passwordHash      String                    @default("")
+  role              String
+  organizationId    String?
+  teamId            String?
+  organization      Organization?             @relation(fields: [organizationId], references: [id])
+  team              Team?                     @relation(fields: [teamId], references: [id])
+  createdTickets    Ticket[]                  @relation("TicketCreator")
+  assignedTickets   Ticket[]                  @relation("TicketAssignee")
+  comments          Comment[]
+  articles          Article[]
+  articleVersions   ArticleVersion[]
+  articleFeedback   ArticleFeedback[]
+  sessions          Session[]
+  notifications     Notification[]
+  attachments       Attachment[]
+  activityLogs      ActivityLog[]
+  statusChanges     TicketStatusHistory[]     @relation("StatusChangedBy")
+  assignmentChanges TicketAssignmentHistory[] @relation("AssignmentChangedBy")
+  assignedInHistory TicketAssignmentHistory[] @relation("AssignedUserHistory")
+  escalations       TicketEscalation[]        @relation("EscalatedBy")
+
+  @@index([role])
+  @@index([organizationId])
+  @@index([teamId])
+}
+
+model Ticket {
+  id                 String                    @id @default(uuid())
+  title              String
+  description        String
+  status             String                    @default("OPEN")
+  priority           String
+  createdBy          String
+  assigneeId         String?
+  organizationId     String?
+  teamId             String?
+  slaPolicyId        String?
+  firstResponseDueAt DateTime?
+  resolutionDueAt    DateTime?
+  firstRespondedAt   DateTime?
+  escalatedAt        DateTime?
+  slaBreachedAt      DateTime?
+  organization       Organization?             @relation(fields: [organizationId], references: [id])
+  team               Team?                     @relation(fields: [teamId], references: [id])
+  slaPolicy          SlaPolicy?                @relation(fields: [slaPolicyId], references: [id])
+  tags               String                    @default("[]")
+  createdAt          DateTime                  @default(now())
+  updatedAt          DateTime                  @updatedAt
+  resolvedAt         DateTime?
+  closedAt           DateTime?
+  creator            User                      @relation("TicketCreator", fields: [createdBy], references: [id])
+  assignee           User?                     @relation("TicketAssignee", fields: [assigneeId], references: [id])
+  comments           Comment[]
+  attachments        Attachment[]
+  notifications      Notification[]
+  activity           ActivityLog[]
+  statusHistory      TicketStatusHistory[]
+  assignmentHistory  TicketAssignmentHistory[]
+  escalations        TicketEscalation[]
+
+  @@index([status])
+  @@index([priority])
+  @@index([assigneeId])
+  @@index([createdBy])
+  @@index([organizationId])
+  @@index([teamId])
+  @@index([slaPolicyId])
+  @@index([resolutionDueAt])
+  @@index([slaBreachedAt])
+  @@index([createdAt])
+}
+
+model Organization {
+  id          String      @id @default(uuid())
+  name        String
+  slug        String      @unique
+  users       User[]
+  teams       Team[]
+  tickets     Ticket[]
+  slaPolicies SlaPolicy[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model Team {
+  id             String       @id @default(uuid())
+  name           String
+  slug           String
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  users          User[]
+  tickets        Ticket[]
+  slaPolicies    SlaPolicy[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([organizationId, slug])
+  @@index([organizationId])
+}
+
+model Session {
+  token     String   @id
+  userId    String
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model SlaPolicy {
+  id              String       @id @default(uuid())
+  name            String
+  priority        String
+  organizationId  String
+  teamId          String?
+  responseHours   Int
+  resolutionHours Int
+  escalationHours Int
+  isActive        Boolean      @default(true)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  team            Team?        @relation(fields: [teamId], references: [id])
+  tickets         Ticket[]
+
+  @@index([priority])
+  @@index([organizationId])
+  @@index([teamId])
+  @@index([isActive])
+}
+
+model TicketStatusHistory {
+  id         String   @id @default(uuid())
+  ticketId   String
+  changedBy  String
+  fromStatus String?
+  toStatus   String
+  createdAt  DateTime @default(now())
+  ticket     Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  actor      User     @relation("StatusChangedBy", fields: [changedBy], references: [id])
+
+  @@index([ticketId])
+  @@index([changedBy])
+  @@index([createdAt])
+}
+
+model TicketAssignmentHistory {
+  id             String   @id @default(uuid())
+  ticketId       String
+  changedBy      String
+  fromAssigneeId String?
+  toAssigneeId   String?
+  createdAt      DateTime @default(now())
+  ticket         Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  actor          User     @relation("AssignmentChangedBy", fields: [changedBy], references: [id])
+  assignee       User?    @relation("AssignedUserHistory", fields: [toAssigneeId], references: [id])
+
+  @@index([ticketId])
+  @@index([changedBy])
+  @@index([toAssigneeId])
+  @@index([createdAt])
+}
+
+model Comment {
+  id          String       @id @default(uuid())
+  ticketId    String
+  authorId    String
+  body        String
+  isInternal  Boolean      @default(false)
+  createdAt   DateTime     @default(now())
+  ticket      Ticket       @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author      User         @relation(fields: [authorId], references: [id])
+  attachments Attachment[]
+
+  @@index([ticketId])
+  @@index([authorId])
+  @@index([createdAt])
+}
+
+model Article {
+  id        String            @id @default(uuid())
+  title     String
+  body      String
+  category  String
+  status    String            @default("DRAFT")
+  tags      String            @default("[]")
+  authorId  String
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  author    User              @relation(fields: [authorId], references: [id])
+  versions  ArticleVersion[]
+  feedback  ArticleFeedback[]
+
+  @@index([status])
+  @@index([category])
+  @@index([authorId])
+  @@index([createdAt])
+}
+
+model ArticleVersion {
+  id            String   @id @default(uuid())
+  articleId     String
+  versionNumber Int
+  title         String
+  body          String
+  category      String
+  tags          String   @default("[]")
+  createdBy     String
+  createdAt     DateTime @default(now())
+  article       Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  author        User     @relation(fields: [createdBy], references: [id])
+
+  @@unique([articleId, versionNumber])
+  @@index([articleId])
+  @@index([createdBy])
+}
+
+model ArticleFeedback {
+  id        String   @id @default(uuid())
+  articleId String
+  userId    String
+  helpful   Boolean
+  comment   String?
+  createdAt DateTime @default(now())
+  article   Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([articleId])
+  @@index([userId])
+  @@index([helpful])
+}
+
+model Attachment {
+  id         String   @id @default(uuid())
+  ticketId   String
+  commentId  String?
+  uploadedBy String
+  fileName   String
+  mimeType   String
+  sizeBytes  Int
+  storageKey String
+  createdAt  DateTime @default(now())
+  ticket     Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  comment    Comment? @relation(fields: [commentId], references: [id], onDelete: SetNull)
+  uploader   User     @relation(fields: [uploadedBy], references: [id])
+
+  @@index([ticketId])
+  @@index([commentId])
+  @@index([uploadedBy])
+  @@index([createdAt])
+}
+
+model ActivityLog {
+  id        String   @id @default(uuid())
+  ticketId  String
+  userId    String
+  action    String
+  details   String
+  createdAt DateTime @default(now())
+  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([ticketId])
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+model TicketEscalation {
+  id          String   @id @default(uuid())
+  ticketId    String
+  escalatedBy String?
+  level       Int      @default(1)
+  reason      String
+  createdAt   DateTime @default(now())
+  ticket      Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  actor       User?    @relation("EscalatedBy", fields: [escalatedBy], references: [id])
+
+  @@index([ticketId])
+  @@index([escalatedBy])
+  @@index([createdAt])
+}
+
+model Notification {
+  id        String    @id @default(uuid())
+  userId    String
+  ticketId  String?
+  type      String
+  title     String
+  body      String
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ticket    Ticket?   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([ticketId])
+  @@index([readAt])
+  @@index([createdAt])
+}
+
+model EventOutbox {
+  id            String    @id @default(uuid())
+  aggregateType String
+  aggregateId   String
+  eventType     String
+  payload       String
+  status        String    @default("PENDING")
+  attempts      Int       @default(0)
+  nextAttemptAt DateTime?
+  processedAt   DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@index([aggregateType, aggregateId])
+  @@index([eventType])
+  @@index([status])
+  @@index([nextAttemptAt])
+  @@index([createdAt])
+}

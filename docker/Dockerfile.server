@@ -1,0 +1,29 @@
+# Author: Jordan Park
+# Issue: #24 â€” Build and run the Express API with Prisma
+
+FROM node:20-alpine AS build
+WORKDIR /app
+
+COPY package.json ./
+COPY packages/server/package.json packages/server/package.json
+COPY packages/shared/package.json packages/shared/package.json
+RUN npm install --package-lock=false
+
+COPY packages/shared packages/shared
+COPY packages/server packages/server
+RUN npm run db:generate --workspace @helpdesk/server
+RUN npm run build --workspace @helpdesk/server
+
+FROM node:20-alpine AS runtime
+WORKDIR /app
+ENV NODE_ENV=production
+ENV PORT=3001
+ENV DATABASE_URL=file:/data/helpdesk.db
+
+COPY --from=build /app/node_modules node_modules
+COPY --from=build /app/packages/server/dist packages/server/dist
+COPY --from=build /app/packages/server/prisma packages/server/prisma
+COPY --from=build /app/packages/server/package.json packages/server/package.json
+
+EXPOSE 3001
+CMD ["node", "packages/server/dist/index.js"]
