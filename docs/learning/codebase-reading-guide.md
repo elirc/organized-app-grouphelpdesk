@@ -19,11 +19,17 @@ Start with these files in order:
 5. [packages/client/src/hooks/useTickets.ts](../../packages/client/src/hooks/useTickets.ts)
 6. [packages/client/src/services/api.ts](../../packages/client/src/services/api.ts)
 7. [packages/server/src/index.ts](../../packages/server/src/index.ts)
-8. [packages/server/src/routes/tickets.ts](../../packages/server/src/routes/tickets.ts)
-9. [packages/server/src/controllers/ticketController.ts](../../packages/server/src/controllers/ticketController.ts)
-10. [packages/server/src/services/ticketService.ts](../../packages/server/src/services/ticketService.ts)
+8. [packages/server/src/modules/tickets/ticket.routes.ts](../../packages/server/src/modules/tickets/ticket.routes.ts)
+9. [packages/server/src/modules/tickets/ticket.controller.ts](../../packages/server/src/modules/tickets/ticket.controller.ts)
+10. [packages/server/src/modules/tickets/ticket.service.ts](../../packages/server/src/modules/tickets/ticket.service.ts)
 11. [packages/server/prisma/schema.prisma](../../packages/server/prisma/schema.prisma)
 12. [tests/unit/ticketService.test.ts](../../tests/unit/ticketService.test.ts)
+
+`routes/tickets.ts`, `controllers/ticketController.ts` and
+`services/ticketService.ts` still exist, but since the Phase 3 module refactor
+they are compatibility re-exports of the `modules/tickets/` files (4, 11 and 28
+lines). `index.ts:16` still imports the router through the old path, so don't
+be surprised when you land in a one-line file.
 
 ## What Problem This Reading Order Solves
 
@@ -125,9 +131,9 @@ Read in this order:
 2. `useTickets.ts`
 3. `api.ts`
 4. `server/src/index.ts`
-5. `routes/tickets.ts`
-6. `controllers/ticketController.ts`
-7. `services/ticketService.ts`
+5. `modules/tickets/ticket.routes.ts`
+6. `modules/tickets/ticket.controller.ts`
+7. `modules/tickets/ticket.service.ts`, then `ticket.repository.ts`
 8. `schema.prisma`
 
 Questions to ask:
@@ -213,3 +219,9 @@ Questions to ask:
    whether it is still trusted or only backward-compatible shape.
 5. Compare the ticket module to the older comment service and identify what
    would move in a future comments module refactor.
+6. **Find where pagination is clamped, twice.**
+   *Goal:* practise Trace 1's "where does pagination happen?" question.
+   **Check:** you find the same `page`/`limit` clamp in both
+   `ticket.service.ts:131-132` and `ticket.repository.ts:54-55`, and you can say
+   which one should own it and what the Zod schema
+   (`validation/ticketSchemas.ts:59-60`) already guarantees.

@@ -27,10 +27,20 @@ The comments, dashboard, users, and knowledge-base domains have not yet been
 modularized like tickets.
 
 Auth uses in-memory sessions and localStorage tokens. That is acceptable for
-learning but not production-ready.
+learning but not production-ready. (Checked 2026-10-06: the enterprise sprints
+added a `Session` table and expiry, so sessions now survive a restart. Tokens
+are still kept in localStorage.)
 
 Organization scoping exists in the schema but is not enforced across every
-query.
+query. (Checked 2026-10-06: ticket, user, knowledge-base, SLA and attachment
+code now filters by `organizationId`, but `commentService.ts` and
+`dashboardService.ts` never mention it.)
+
+Authorization on reads is incomplete. Ticket reads are now scoped to the owner
+and organization, but customers can read and add public comments on any
+ticket, and four endpoints return `passwordHash` inside user objects. See
+[security-mistakes-in-crud-apps.md](security-mistakes-in-crud-apps.md#known-gaps-in-this-repo)
+(added 2026-10-06).
 
 Frontend tests are still missing.
 

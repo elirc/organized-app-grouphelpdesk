@@ -121,10 +121,73 @@ Client after changing `schema.prisma`.
 - Are tests checking both success and failure paths?
 - Is any old client-provided identity field still trusted?
 
+## What Changed After This Phase
+
+Checked against this snapshot on 2026-10-06, which includes the enterprise
+sprints in `docs/sprints/`:
+
+- Sessions now expire and survive a restart. `login` sets `expiresAt` from
+  `SESSION_TTL_HOURS` and writes a `Session` row
+  (`packages/server/src/services/authService.ts:52-66`). `getCurrentUser`
+  checks the in-memory cache first, then the database, and deletes expired
+  sessions (`authService.ts:71-103`). `logout` deletes both
+  (`authService.ts:105-110`).
+- Ticket reads are scoped. Customers and requesters see only their own tickets,
+  and every viewer is limited to their organization
+  (`modules/tickets/ticket.service.ts:39-69`).
+- A global per-IP rate limiter runs in front of every route, including login
+  (`middleware/rateLimit.ts`, `index.ts:36`). It is disabled in tests.
+
+## What This Phase Did Not Finish
+
+Authorization on reads is still incomplete. Customers can read and add public
+comments on any ticket, and four endpoints return `passwordHash` inside user
+objects. The details, with file and line references, are in
+[security-mistakes-in-crud-apps.md](security-mistakes-in-crud-apps.md#known-gaps-in-this-repo).
+Also note that `assignTicketBodySchema` still accepts `actorId`
+(`packages/server/src/validation/ticketSchemas.ts:55`). The client no longer
+sends it, and the controller passes `req.currentUser!.id` instead
+(`packages/server/src/modules/tickets/ticket.controller.ts:67-81`).
+
 ## Follow-Up Exercises
 
-1. Replace in-memory sessions with a database-backed session table.
-2. Add token expiration and session revocation.
+1. **Pin the password helpers without installing anything.**
+   *Goal:* confirm what `utils/password.ts` guarantees. It imports only Node
+   built-ins, so Node 22.6+ can load it directly. Create
+   `scratch/password.test.mjs` at the repo root (delete it afterwards):
+
+   ```js
+   import { test } from "node:test";
+   import assert from "node:assert/strict";
+   import { hashPassword, verifyPassword } from "../packages/server/src/utils/password.ts";
+
+   test("a hash is salted and verifies only the right password", async () => {
+     const a = await hashPassword("hunter2");
+     const b = await hashPassword("hunter2");
+     assert.match(a, /^scrypt:[0-9a-f]{32}:[0-9a-f]{128}$/);
+     assert.notEqual(a, b);
+     assert.equal(await verifyPassword("hunter2", a), true);
+     assert.equal(await verifyPassword("hunter3", a), false);
+   });
+
+   test("the schema's empty default hash never verifies", async () => {
+     assert.equal(await verifyPassword("", ""), false);
+   });
+   ```
+
+   **Check:** `node --experimental-strip-types --test scratch/password.test.mjs`
+   reports `# pass 2`. Then explain in one sentence why the second test matters,
+   given `passwordHash String @default("")` in `prisma/schema.prisma:17`.
+2. **Read the session lifecycle.** Database-backed sessions and expiry already
+   exist (see "What Changed After This Phase").
+   **Check:** write down what happens to a token after `SESSION_TTL_HOURS`
+   passes, and why `getCurrentUser` still needs the database lookup when the
+   in-memory `Map` misses. Then add a unit test with a fake clock showing an
+   expired session returns `null` and is deleted.
 3. Add an integration test that logs in and creates a ticket as a customer.
-4. Add `canViewTicket(currentUser, ticket)` to the ticket permissions file.
+   **Check:** the response's `createdBy` is the customer's id even when the body
+   sends a different `createdBy`.
+4. Move the read rule from `assertCanReadTicket` in `ticket.service.ts` into a
+   `canViewTicket(currentUser, ticket)` helper in `ticket.permissions.ts`, and
+   reuse it for comments (see security guide exercise 2).
 5. Compare opaque sessions with JWTs and write an ADR for the choice.

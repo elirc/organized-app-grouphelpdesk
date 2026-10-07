@@ -22,7 +22,17 @@ engineering moves realistic, reviewable, and teachable.
 
 ## Current Architecture Snapshot
 
-HelpDesk currently uses this shape:
+> **Status note (2026-10-06):** This snapshot describes the code *before* the
+> phases below. Phases 2-8 have landed since: Zod validation, the
+> `modules/tickets/` module, server-derived identity with `requireAuth` and
+> `requireRole`, TanStack Query, team and history models, more tests, and the
+> debugging and code-review guides. This repository also includes three later
+> enterprise sprints (`docs/sprints/`): tenant and SLA foundations, events and
+> attachments, and admin and operational hardening. Read this section as the
+> starting point the plan was written against. For what's still open, see
+> `refactoring-retrospective.md`, "What Remains Incomplete".
+
+HelpDesk used this shape when the plan was written:
 
 ```text
 React pages/components

@@ -18,6 +18,17 @@ being refactored in realistic phases.
 - `tests/integration/authz.test.ts`
 - `tests/integration/statusTransitions.test.ts`
 
+Also in the suite but not listed above: `tests/integration/tickets.test.ts` (a
+health-check smoke test), `tests/unit/dashboardService.test.ts`,
+`packages/server/src/modules/tickets/ticket.test.ts` (mapper and permission
+helpers), and the unit tests added by the enterprise sprints
+(`attachmentService`, `knowledgeBaseService`, `notificationService`,
+`outboxService`, `sanitizeHtml`, `slaService` and `userService`). That's 17
+files and 45 `it(...)` cases in total as of 2026-10-06
+(`grep -c "it(" tests/*/*.ts packages/server/src/modules/tickets/ticket.test.ts`).
+`npm test` runs them all through the server workspace's `vitest run --root ../..`
+script.
+
 ## What Problem This Pattern Solves
 
 Refactors are safer when tests protect behavior rather than implementation
@@ -37,7 +48,16 @@ Integration tests focus on HTTP boundaries:
 
 - validation failures
 - unauthenticated protected routes
-- status transition behavior through the API
+
+Two caveats a reviewer should notice. First, despite its folder,
+`tests/integration/statusTransitions.test.ts` never goes through HTTP: it calls
+`createTicketService` with hand-built `vi.fn()` mocks, so it's a service
+test. Second, no test sends a request *as a logged-in user*. Apart from the
+health check, every `supertest` call in `tests/integration/` either fails
+validation (`400`) or has no token (`401`). Nothing covers `403`, ownership, or
+what a successful response contains, which is why the gaps in
+[security-mistakes-in-crud-apps.md](security-mistakes-in-crud-apps.md#known-gaps-in-this-repo)
+went unnoticed.
 
 ## What Changed
 
@@ -83,7 +103,15 @@ mock objects for new repository methods.
 ## Follow-Up Exercises
 
 1. Add a login integration test backed by a test database.
-2. Add tests for assignment history creation.
-3. Add frontend tests for login redirect behavior.
-4. Add Playwright coverage for login, ticket creation, and comment creation.
-5. Write a test plan before refactoring comments into a module.
+   **Check:** it logs in as `riley.requester@example.com` from
+   `packages/server/prisma/seed.ts`, uses the token on `GET /api/users`, and
+   asserts no `passwordHash` in the body. That test should fail today.
+2. **Find a test that can't fail.**
+   *Goal:* practise reading tests for what they prove.
+   **Check:** for each `it(...)` in `tests/integration/validation.test.ts`, write
+   the one-line production change that would make it fail. If you can't find
+   one for a test, explain why it still earns its place.
+3. Add tests for assignment history creation.
+4. Add frontend tests for login redirect behavior.
+5. Add Playwright coverage for login, ticket creation, and comment creation.
+6. Write a test plan before refactoring comments into a module.

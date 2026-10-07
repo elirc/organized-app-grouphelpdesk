@@ -33,6 +33,15 @@ The frontend uses deterministic seeded IDs for demo create/comment flows:
 - `user_agent_1`
 - `user_admin_1`
 
+> **Status note (2026-10-06):** This repository is a snapshot of
+> [elirc/grouphelpdesk](https://github.com/elirc/grouphelpdesk) that also
+> includes the three enterprise sprints in `docs/sprints/`. Since the Phase 4
+> auth work, the server takes identity from the bearer token and ignores
+> client-sent IDs. In this snapshot the client no longer sends any of these
+> seeded IDs: a search for `user_agent_1`, `user_admin_1` and
+> `user_requester_1` under `packages/client/src` finds nothing. The IDs remain
+> in `packages/server/prisma/seed.ts`, where the demo users are created.
+
 The server test command runs Vitest from the monorepo root so tests in `tests/`
 are discovered while still using the server workspace script.
 

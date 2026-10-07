@@ -105,6 +105,10 @@ repo it turns serialized database tags into string arrays and serializes dates.
 
 `ticket.permissions.ts` holds small permission-style decisions. These are simple
 today, but this file becomes important when real authentication and RBAC arrive.
+(Status 2026-10-06: role checks went into route middleware (`requireRole` in
+`ticket.routes.ts`), and the per-ticket read rule went into the service as
+`scopeFilters` and `assertCanReadTicket` (`ticket.service.ts:39-69`). This
+file still holds only `canBeAssignedTicket` and `canMoveToInProgress`.)
 
 ## What Changed
 
